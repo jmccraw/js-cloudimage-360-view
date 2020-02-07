@@ -37,6 +37,21 @@ class CI360Viewer {
     this.init(container);
   }
 
+  /**
+   * Track a custom link event in Adobe Analytics
+   * @param {String} customEvent The type of event that is happening (e.g., profile:previous:click)
+   */
+  trackanalytics(customEvent) {
+    const device = this.isMobile ? 'mobile:' : 'desktop:';
+
+    if ( window.espn && window.espn.track ) {
+      window.espn.track.trackLink( {
+        linkPos: `espncom:nba-figs:${device}${customEvent}`,
+        linkId: null
+      } );
+    }
+  }
+
   mousedown(event) {
     event.preventDefault();
 
@@ -52,12 +67,24 @@ class CI360Viewer {
 
     if (this.autoplay || this.loopTimeoutId) {
       this.stop();
-      this.autoplay = false;
+      // this.autoplay = false;
     }
 
     this.movementStart = event.pageX;
     this.isClicked = true;
     this.container.style.cursor = 'grabbing';
+  }
+
+  setautoplaytimer() {
+    window.setTimeout( () => {
+      this.isAutoplayCountingDown = false;
+
+      if ( this.autoplay && ! this.isClicked ) {
+        this.isPlaying = true;
+        this.instructions.classList.remove( 'is-hidden' );
+        this.trackanalytics( `${this.playerName}:rotation:end` );
+      }
+    }, 2000 );
   }
 
   mouseup() {
@@ -70,10 +97,17 @@ class CI360Viewer {
     if (this.bottomCircle) {
       this.show360ViewCircleIcon();
     }
+
+    if ( ! this.isAutoplayCountingDown ) {
+      this.isAutoplayCountingDown = true;
+      this.autoplay = true;
+      this.setautoplaytimer();
+    }
   }
 
   mousemove(event) {
     if (!this.isClicked || !this.imagesLoaded) return;
+    this.instructions.classList.add( 'is-hidden' );
 
     this.onMove(event.pageX);
   }
@@ -91,7 +125,7 @@ class CI360Viewer {
 
     if (this.autoplay || this.loopTimeoutId) {
       this.stop();
-      this.autoplay = false;
+      // this.autoplay = false;
     }
 
     this.movementStart = event.touches[0].clientX;
@@ -105,10 +139,16 @@ class CI360Viewer {
     this.isClicked = false;
 
     if (this.bottomCircle) this.show360ViewCircleIcon();
+
+    if ( ! this.isAutoplayCountingDown ) {
+      this.isAutoplayCountingDown = true;
+      this.setautoplaytimer();
+    }
   }
 
   touchmove(event) {
     if (!this.isClicked || !this.imagesLoaded) return;
+    this.instructions.classList.add( 'is-hidden' );
 
     this.onMove(event.touches[0].clientX);
   }
@@ -156,7 +196,7 @@ class CI360Viewer {
 
     if (this.autoplay || this.loopTimeoutId) {
       this.stop();
-      this.autoplay = false;
+      // this.autoplay = false;
     }
   }
 
@@ -258,6 +298,9 @@ class CI360Viewer {
   }
 
   loop(reversed) {
+    if ( ! this.isPlaying ) {
+      return;
+    }
     reversed ? this.prev() : this.next();
   }
 
@@ -273,7 +316,7 @@ class CI360Viewer {
 
   update() {
     const image = this.images[this.activeImage - 1];
-    const ctx = this.canvas.getContext("2d");
+    const ctx = this.canvas.getContext("2d", { alpha: false, desynchronized: true } );
 
     ctx.scale(this.devicePixelRatio, this.devicePixelRatio);
 
@@ -297,20 +340,20 @@ class CI360Viewer {
     }
   }
 
-  updatePercentageInLoader(percentage) {
-    if (this.loader) {
-      this.loader.style.width = percentage + '%';
-    }
+  // updatePercentageInLoader(percentage) {
+  //   if (this.loader) {
+  //     this.loader.style.width = percentage + '%';
+  //   }
 
-    if (this.view360Icon) {
-      this.view360Icon.innerText = percentage + '%';
-    }
-  }
+  //   if (this.view360Icon) {
+  //     this.view360Icon.innerText = percentage + '%';
+  //   }
+  // }
 
   onAllImagesLoaded() {
     this.imagesLoaded = true;
     this.container.style.cursor = 'grab';
-    this.removeLoader();
+    // this.removeLoader();
 
     if (!this.fullScreenView) {
       this.speedFactor = Math.floor(this.dragSpeed / 150 * 36 / this.amount * 25 * this.container.offsetWidth / 1500) || 1;
@@ -325,7 +368,11 @@ class CI360Viewer {
       this.speedFactor = Math.floor(this.dragSpeed / 150 * 36 / this.amount * 25 * imageOffsetWidth / 1500) || 1;
     }
 
+    this.frame.classList.add( 'is-active' );
+
     if (this.autoplay) {
+      this.isPlaying = false;
+      this.frame.dataset.hasLoaded = 'true';
       this.play();
     }
 
@@ -335,10 +382,12 @@ class CI360Viewer {
     }
 
     this.initControls();
+
+    this.trackanalytics( `${this.playerName}:figurine-loaded` );
   }
 
   onFirstImageLoaded(event) {
-    this.add360ViewIcon();
+    // this.add360ViewIcon();
 
     if (this.fullScreenView) {
       this.canvas.width = window.innerWidth * this.devicePixelRatio;
@@ -358,7 +407,7 @@ class CI360Viewer {
       this.canvas.height = this.container.offsetWidth * this.devicePixelRatio / event.target.width * event.target.height;
       this.canvas.style.height = this.container.offsetWidth / event.target.width * event.target.height + 'px';
 
-      const ctx = this.canvas.getContext("2d");
+      const ctx = this.canvas.getContext("2d", { alpha: false, desynchronized: true } );
 
       ctx.drawImage(event.target, 0, 0, this.canvas.width, this.canvas.height);
     }
@@ -403,10 +452,10 @@ class CI360Viewer {
   }
 
   onImageLoad(event) {
-    const percentage = Math.round(this.loadedImages / this.amount * 100);
+    // const percentage = Math.round(this.loadedImages / this.amount * 100);
 
     this.loadedImages += 1;
-    this.updatePercentageInLoader(percentage);
+    // this.updatePercentageInLoader(percentage);
 
     if (this.loadedImages === this.amount) {
       this.onAllImagesLoaded(event);
@@ -425,16 +474,16 @@ class CI360Viewer {
     this.innerBox.appendChild(closeFullScreenIcon);
   }
 
-  add360ViewIcon() {
-    const view360Icon = document.createElement('div');
+  // add360ViewIcon() {
+  //   const view360Icon = document.createElement('div');
 
-    set360ViewIconStyles(view360Icon);
+  //   set360ViewIconStyles(view360Icon);
 
-    view360Icon.innerText = '0%';
+  //   view360Icon.innerText = '0%';
 
-    this.view360Icon = view360Icon;
-    this.innerBox.appendChild(view360Icon);
-  }
+  //   this.view360Icon = view360Icon;
+  //   this.innerBox.appendChild(view360Icon);
+  // }
 
   addFullScreenIcon() {
     const fullScreenIcon = document.createElement('div');
@@ -573,6 +622,12 @@ class CI360Viewer {
     if (this.bottomCircle) this.hide360ViewCircleIcon();
     this.remove360ViewIcon();
 
+    if ( this.isPlaying ) {
+      return;
+    } else {
+      this.isPlaying = true;
+    }
+
     this.loopTimeoutId = window.setInterval(() => {
       this.loop(this.reversed);
     }, this.autoplaySpeed);
@@ -580,7 +635,8 @@ class CI360Viewer {
 
   stop() {
     if (this.bottomCircle) this.show360ViewCircleIcon();
-    window.clearTimeout(this.loopTimeoutId);
+    // window.clearInterval(this.loopTimeoutId);
+    this.isPlaying = false;
   }
 
   getSrc(responsive, container, folder, filename, { ciSize, ciToken, ciOperation, ciFilters }) {
@@ -690,11 +746,11 @@ class CI360Viewer {
     };
     const onLeftEnd = () => {
       this.onFinishSpin();
-      window.clearTimeout(this.loopTimeoutId);
+      window.clearInterval(this.loopTimeoutId);
     };
     const onRightEnd = () => {
       this.onFinishSpin();
-      window.clearTimeout(this.loopTimeoutId);
+      window.clearInterval(this.loopTimeoutId);
     };
 
     if (prev) {
@@ -743,30 +799,24 @@ class CI360Viewer {
     this.innerBox.appendChild(this.canvas);
   }
 
-  attachEvents(draggable, swipeable, keys) {
+  attachEvents(draggable, swipeable) {
     if (draggable) {
       this.container.addEventListener('mousedown', this.mousedown.bind(this));
-      this.container.addEventListener('mouseup', this.mouseup.bind(this));
+      document.body.addEventListener('mouseup', this.mouseup.bind(this));
       this.container.addEventListener('mousemove', this.mousemove.bind(this));
     }
 
     if (swipeable) {
       this.container.addEventListener('touchstart', this.touchstart.bind(this), { passive: true });
-      this.container.addEventListener('touchend', this.touchend.bind(this), { passive: true });
+      document.body.addEventListener('touchend', this.touchend.bind(this), { passive: true });
       this.container.addEventListener('touchmove', this.touchmove.bind(this));
-    }
-
-    if (keys) {
-      document.addEventListener('keydown', this.keydown.bind(this));
-      document.addEventListener('keyup', this.keyup.bind(this));
-    } else {
-      document.addEventListener('keydown', this.keydownGeneral.bind(this));
     }
   }
 
   applyStylesToContainer() {
     this.container.style.position = 'relative';
     this.container.style.width = '100%';
+    this.container.style.height = '100%';
     this.container.style.cursor = 'wait';
     this.container.setAttribute('draggable', 'false');
     this.container.className = `${this.container.className} initialized`;
@@ -779,9 +829,9 @@ class CI360Viewer {
       ciFilters, lazyload, lazySelector, spinReverse, dragSpeed, stopAtEdges, controlReverse
     } = get360ViewProps(container);
     const ciParams = { ciSize, ciToken, ciOperation, ciFilters };
+    const parent = this.container.parentElement.parentElement;
 
     this.addInnerBox();
-    this.addLoader();
 
     this.folder = folder;
     this.filename = filename;
@@ -791,7 +841,7 @@ class CI360Viewer {
     this.bottomCircle = bottomCircle;
     this.bottomCircleOffset = bottomCircleOffset;
     this.boxShadow = boxShadow;
-    this.autoplay = autoplay && !this.isMobile;
+    this.autoplay = autoplay; // && !this.isMobile;
     this.speed = speed;
     this.reversed = autoplayReverse;
     this.fullScreen = fullScreen;
@@ -803,6 +853,11 @@ class CI360Viewer {
     this.dragSpeed = dragSpeed;
     this.autoplaySpeed = this.speed * 36 / this.amount;
     this.stopAtEdges = stopAtEdges;
+    this.isAutoplayCountingDown = false;
+    this.isPlaying = false;
+    this.instructions = parent.querySelector( '.figurine-video-instruction' );
+    this.frame = parent.querySelector( '.figurine-video-frame-container' );
+    this.playerName = parent.dataset.player;
 
     this.applyStylesToContainer();
 
@@ -812,7 +867,7 @@ class CI360Viewer {
 
     this.preloadImages(amount, src, lazyload, lazySelector, container, responsive, ciParams);
 
-    this.attachEvents(draggable, swipeable, keys);
+    this.attachEvents(draggable, swipeable);
   }
 }
 
