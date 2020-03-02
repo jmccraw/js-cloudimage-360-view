@@ -82,6 +82,9 @@ class CI360Viewer {
       if ( this.autoplay && ! this.isClicked ) {
         this.isPlaying = true;
         this.instructions.classList.remove( 'is-hidden' );
+        // TODO FIXME This needs to be cleared and reset each time, not just left to complete as a timeout
+        // The call also triggers for each and every rotation that's loaded, not just for this specific player
+        // currently, which is skewing data dramatically
         this.trackanalytics( `${this.playerName}:rotation:end` );
       }
     }, 2000 );
